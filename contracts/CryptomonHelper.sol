@@ -13,6 +13,8 @@ contract CryptomonHelper is CryptomonFactory{
     uint levelUpFee = 0.001 ether;
     uint feeCryptoball = 0.0001 ether;
 
+
+
     struct cryptoBalls{
         uint simpleCryptoballs;
         uint superCryptoballs;
@@ -42,5 +44,9 @@ contract CryptomonHelper is CryptomonFactory{
     function levelUp(uint _cryptomonId) external payable{
         require(msg.value == levelUpFee);
         ownerToCryptomon[msg.sender][_cryptomonId].level = ownerToCryptomon[msg.sender][_cryptomonId].level.add(1);
+    }
+
+    function randomFunction(uint modulo) internal returns (uint8) {
+        return uint8(blockhash(block.number-1)) % 100;
     }
 }
