@@ -22,13 +22,18 @@ contract CryptomonHelper is CryptomonFactory{
         int superCryptoballs;
         int hyperCryptoballs;
     }
-
+    // Basic definition of "Food" objects
     struct cryptoFood{
-        // SELIM
+        int simplePotion;
+        int superPotion;
+        int hyperPotion;
+        int fullRestore;
     }
 
     // default fee needed to buy a cryptoball (can be set with setCryptoballFee() )
     uint cryptoballFee = 0.0001 ether;
+    // default fee needed to buy a potion (can be set with setPotionFee() )
+    uint potionFee = 0.0001 ether;
 
     // Mapping returning the cryptoBalls structure for each player
     mapping(address => cryptoBalls) ownerToCryptoballs;
@@ -46,7 +51,15 @@ contract CryptomonHelper is CryptomonFactory{
     function setCryptoballFee(uint _fee) public onlyOwner {
         cryptoballFee = _fee;
     }
-
+    /**
+    @notice The game owner can modify the purchase fee of a potion
+    @dev
+            Just setting an amount to the potion variable
+    @param _fee Fee's amount to setup
+     */
+    function setPotionFee(uint _fee) public onlyOwner {
+        potionFee = _fee;
+    }
 
     /**
     @notice Players can purchase cryptoball which depends on the type asked
@@ -70,14 +83,84 @@ contract CryptomonHelper is CryptomonFactory{
         }
 
     }
-
+    /**
+    @notice Players can purchase potions which depends on the type asked
+    @dev
+            This function needs a value (1,2,3,4)
+            It can be called by the UI
+            Depending on the param value, it increments the corresponding variable in the cryptoFood structure of the sender
+    @param _typeof Type of the potion asked
+     */
 
     function getFood(uint _typeof) public payable{
-        // SELIM
+        require(msg.value == potionFee * _typeof);
+        if(_typeof == 1){
+            ownerToCryptofood[msg.sender].simplePotion++;
+        }
+        else if(_typeof == 2){
+            ownerToCryptofood[msg.sender].superPotion++;
+        }
+        else if(_typeof == 3){
+            ownerToCryptofood[msg.sender].hyperPotion++;
+        }
+         else if(_typeof == 4){
+            ownerToCryptofood[msg.sender].fullRestore++;
+        }
     }
+    /**
+    @notice 
+    Players can feed potions which will affect the hunger of the cryptomon : 
+        - if hunger is above 100, it will hit the health point
+        - if hunger is 0, it will kill the cryptomon 
+        - The hunger drops by 1 pt every 4 hours = 14 400 sec
+    @dev
+            It can be called only by the cryptomon owner
+            This function needs a value (1,2,3,4) to determin which potion to use
 
+    @param _typeof Type of the potion to use on the cryptomon
+     */
     function feed(uint _cryptomonId, uint _typeof) public {
-        // SELIM
+
+        require(cryptomonToOwner(_cryptomonId) == msg.sender);
+        //We drop the huger by the amount of slots of 4h from the last meal
+        cryptomons[_cryptomonId].hunger.sub((now - lastMealTime).div(14400));
+        require(cryptomons[_cryptomonId].hunger > 0);
+
+        //We check the potion selected to the hunger, simplePotion : +20, super: +40, hyper: +60.
+        uint potionChosen;
+        if(_typeof == 1){
+            potionChosen = ownerToCryptofood[msg.sender].simplePotion;
+            require(potionChosen>0);
+            ownerToCryptofood[msg.sender].simplePotion.sub(1);
+            cryptomons[_cryptomonId].hunger.add(20);
+        }
+        else if(_typeof == 2){
+            potionChosen = ownerToCryptofood[msg.sender].superPotion;
+            require(potionChosen>0);
+            ownerToCryptofood[msg.sender].superPotion.sub(1);
+            cryptomons[_cryptomonId].hunger.add(40);
+        }
+        else if(_typeof == 3){
+            potionChosen = ownerToCryptofood[msg.sender].hyperPotion;
+            require(potionChosen>0);
+            ownerToCryptofood[msg.sender].hyperPotion.sub(1);
+            cryptomons[_cryptomonId].hunger.add(60); 
+        }
+         else if(_typeof == 4){
+            potionChosen = ownerToCryptofood[msg.sender].fullRestore;
+            require(potionChosen>0);
+            ownerToCryptofood[msg.sender].fullRestore.sub(1);
+            cryptomons[_cryptomonId].hunger = 100;
+        }
+
+        //Hunger can't exceed 100. The drawback is minus healthpoints
+        if (cryptomons[_cryptomonId].hunger >100){
+        uint aboveLimitHunger = cryptomons[_cryptomonId].hunger - 100;
+        cryptomons[_cryptomonId].healthPoint.sub(aboveLimitHunger);
+        cryptomons[_cryptomonId].hunger = 100;
+        }
+
+        cryptomons[_cryptomonId].lastMealTime = now;
     }
 
 

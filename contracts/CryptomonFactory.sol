@@ -36,6 +36,7 @@ contract CryptomonFactory is Ownable {
         int healthBonus;
         uint8 idCryptomonEvolution;
         uint8 levelNeededForEvolution;
+        int lastMealTime; //J'ai rajouté ça pour pouvoir avoir un repère pour la descente de la faim
     }
 
     // Basic definition of a spell linked to the cryptomon idSpell and damage
@@ -82,20 +83,20 @@ contract CryptomonFactory is Ownable {
             Basically you need this contract to deployed the others.
      */
     constructor() public {
-        cryptomons.push(Cryptomon(1,0,"cryptoChu", 1, 0,Kind.ELECTRIK,0,0,20,80,0,100,100,5,0,0,1,0,2,5));
-        cryptomons.push(Cryptomon(2,0,"RaicryptoChu", 1, 4,Kind.ELECTRIK,0,0,20,80,0,150,150,5,0,0,1,0,0,0));
+        cryptomons.push(Cryptomon(1,0,"cryptoChu", 1, 0,Kind.ELECTRIK,0,0,20,80,0,100,100,5,0,0,1,0,2,5,now));
+        cryptomons.push(Cryptomon(2,0,"RaicryptoChu", 1, 4,Kind.ELECTRIK,0,0,20,80,0,150,150,5,0,0,1,0,0,0,now));
 
-        cryptomons.push(Cryptomon(3,0,"cryptoMeche",1,1,Kind.FIRE,0,0,20,80,0,100,100,5,0,0,1,0,4,5));
-        cryptomons.push(Cryptomon(4,0,"cryptoCel",1,5,Kind.FIRE,0,0,20,80,0,130,130,5,0,0,1,0,5,8));
-        cryptomons.push(Cryptomon(5,0,"cryptoFeu",1,8,Kind.FIRE,0,0,20,80,0,180,180,5,0,0,1,0,0,0));
+        cryptomons.push(Cryptomon(3,0,"cryptoMeche",1,1,Kind.FIRE,0,0,20,80,0,100,100,5,0,0,1,0,4,5,now));
+        cryptomons.push(Cryptomon(4,0,"cryptoCel",1,5,Kind.FIRE,0,0,20,80,0,130,130,5,0,0,1,0,5,8,now));
+        cryptomons.push(Cryptomon(5,0,"cryptoFeu",1,8,Kind.FIRE,0,0,20,80,0,180,180,5,0,0,1,0,0,0,now));
 
-        cryptomons.push(Cryptomon(6,0,"cryptoPuce",1,2,Kind.WATER,0,0,20,80,0,100,100,5,0,0,1,0,7,5));
-        cryptomons.push(Cryptomon(7,0,"cryptoBaffe",1,6,Kind.WATER,0,0,20,80,0,130,130,5,0,0,1,0,8,8));
-        cryptomons.push(Cryptomon(8,0,"cryptoTank",1,9,Kind.WATER,0,0,20,80,0,180,180,5,0,0,1,0,0,0));
+        cryptomons.push(Cryptomon(6,0,"cryptoPuce",1,2,Kind.WATER,0,0,20,80,0,100,100,5,0,0,1,0,7,5,now));
+        cryptomons.push(Cryptomon(7,0,"cryptoBaffe",1,6,Kind.WATER,0,0,20,80,0,130,130,5,0,0,1,0,8,8,now));
+        cryptomons.push(Cryptomon(8,0,"cryptoTank",1,9,Kind.WATER,0,0,20,80,0,180,180,5,0,0,1,0,0,0,now));
 
-        cryptomons.push(Cryptomon(9,0,"cryptoZare",1,3,Kind.GRASS,0,0,20,80,0,100,100,5,0,0,1,0,10,5));
-        cryptomons.push(Cryptomon(10,0,"cryptoBaffe",1,7,Kind.GRASS,0,0,20,80,0,130,130,5,0,0,1,0,11,8));
-        cryptomons.push(Cryptomon(11,0,"cryptoTank",1,10,Kind.GRASS,0,0,20,80,0,180,180,5,0,0,1,0,0,0));
+        cryptomons.push(Cryptomon(9,0,"cryptoZare",1,3,Kind.GRASS,0,0,20,80,0,100,100,5,0,0,1,0,10,5,now));
+        cryptomons.push(Cryptomon(10,0,"cryptoBaffe",1,7,Kind.GRASS,0,0,20,80,0,130,130,5,0,0,1,0,11,8,now));
+        cryptomons.push(Cryptomon(11,0,"cryptoTank",1,10,Kind.GRASS,0,0,20,80,0,180,180,5,0,0,1,0,0,0,now));
 
         spellAndDamage.push(SpellAndDamage(0,"Eclair", 5));
         spellAndDamage.push(SpellAndDamage(1,"Flammèche", 5));
