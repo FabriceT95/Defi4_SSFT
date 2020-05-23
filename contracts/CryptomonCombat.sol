@@ -1,41 +1,96 @@
-pragma solidity 0.5.0;
+pragma solidity ^0.5.0;
 pragma experimental ABIEncoderV2;
 
 import "./CryptomonHelper.sol";
 
+/**
+ @title CryptomonCombat contract
+ @author Selim Sahnoun / Fabrice Tapia
+ @dev Contract which is a part of the Alyra's challenge 4
+ */
+
 contract CryptomonCombat is CryptomonHelper{
 
-    mapping(address => Cryptomon) ownerToCapture;
-    mapping(address => fightStatus) ownerToFight;
-
-    uint ExpPerFight = 20;
-    uint passivExpPerFight = 5;
-    uint hungryAfterFight = 2;
-
+    // Basic definition of a fight between 2 players and their cryptomon
     struct fightStatus{
         address sender;
-        uint cryptomonIdInventary;
+        uint idCryptomon;
         address opponent;
-        uint opponentCryptomonInventary;
+        uint idCryptomonOpponent;
     }
 
+    // Active cryptomon fighter will win this amount of experience after a win
+    uint ExpPerFight = 20;
+
+    // Passiv cryptomon fighter will win this amount of experience after a win
+    uint passiveExpPerFight = 5;
+
+    // Hungry value, after a fight, active cryptomon will lose this amount in his Cryptomon structure
+    uint hungryAfterFight = 2;
+
+    // Mapping defining the player trying to capture a Cryptomon
+    mapping(address => Cryptomon) ownerToCapture;
+
+    // Mapping defining the player and the fightStatus structure (it is a way to instanciate a fight)
+    mapping(address => fightStatus) ownerToFight;
+
+    /*
     fightStatus fighting;
-    fightStatus[] private fightings;
+    fightStatus[] private fightings;*/
+
+    // Default fight used when a fight is ended
     fightStatus defaultFighting = fightStatus(address(0),0,address(0),0);
 
+    // Event used at the end of the capture() function. True = success and fight is done, False = miss capture but capture() can continue
     event Capture(bool indexed success);
+
+    // Event used at the end of the fight() function. True = one of fighters is K.O. , False = fight continue
     event Endfight(bool indexed fightEnded);
 
+    /**
+    @notice Chose a random cryptomon available in the game
+    @dev
+            Using randomFunction(uint8 modulo) from CryptomonHelper.sol
+    @return Cryptomon structure from the list cryptomons
+    */
     function spawnCryptomon() public returns (Cryptomon){
-        uint rand = randomFunction(3);
+        uint rand = randomFunction(getCountCryptomons()); //randomFunction(3);
         return cryptomons[rand];
     }
 
+    /**
+    @notice Player starts a cryptomon capture
+    @dev
+            Calls spawnCryptomon and instantiates in the ownerToCapture mapping
+            This way we can call ownerToCapture[msg.sender] for the capture() function
+    */
     function startCapture() public {
         ownerToCapture[msg.sender] = spawnCryptomon();
     }
 
 
+    /**
+    @notice Player stops a cryptomon capture
+    @dev
+            Delete the ownerToCapture[msg.sender]
+            capture() function is no more accessible from the UI
+    */
+    function stopCapture() public {
+        delete ownerToCapture[msg.sender];
+    }
+
+    /**
+    @notice Player throw a cryptoball to the actual cryptomon he is facing
+    @dev
+            Check if player has any kind of cryptoball (it should be check also on the UI)
+            Calculate the probability to catch based on the cryptomon structure (probabilityToCatch) and the cryptoballType
+            Basic randomFunction is called  and check success
+                Then modify some value of the cryptomon structure. idCryptomon is defined by some parameters and hash
+                Add the cryptomon structure in the player ownerToCryptomon array
+                Ends by emit Capture which is over then stop capture
+            Otherwise, failed capture and UI asks to continue
+    @param cryptoballType number between 1 and 3 include specifying which cryptoball is used
+    */
     function capture(uint cryptoballType) public {
         // require(keccak256(bytes(ownerToCapture[msg.sender])) != keccak256(defaultCryptomon));
         require((ownerToCryptoballs[msg.sender].simpleCryptoballs > 0 || ownerToCryptoballs[msg.sender].superCryptoballs > 0 || ownerToCryptoballs[msg.sender].hyperCryptoballs > 0));
@@ -49,28 +104,59 @@ contract CryptomonCombat is CryptomonHelper{
             ownerCryptomonCount[msg.sender] = ownerCryptomonCount[msg.sender].add(1);
             ownerToCryptomon[msg.sender].push(ownerToCapture[msg.sender]);
             cryptomonToOwner[ownerToCapture[msg.sender].idCryptomon] = msg.sender;
+            cryptomonToHungry[ownerToCapture[msg.sender].idCryptomon] = false;
             emit Capture(true);
+            stopCapture();
         }else{
-            delete ownerToCapture[msg.sender];
             emit Capture(false);
         }
     }
 
-    function startFight(uint _cryptomonIdInventary, address _opponent, uint _opponentCryptomonInventary) public {
-        // On vérifie que le cryptomon ne crève pas la dalle
-        require(ownerToCryptomon[msg.sender][ownerToFight[msg.sender].cryptomonIdInventary].hungry > 0);
-        ownerToFight[msg.sender] = fightStatus(msg.sender,_cryptomonIdInventary, _opponent, _opponentCryptomonInventary);
+
+    /**
+    @notice Player starts a fight against a passive player
+    @dev
+            Check if the selected cryptomon is not hungry (in structure Cryptomon, hungry > 0)
+            Instianciates a fightStatus in ownerToFight
+
+    @param _cryptomonIdInventary
+    */
+    function startFight(uint _cryptomonId, address _opponent, uint _opponentCryptomonId) public {
+        require(cryptomonToHungry[_cryptomonId] == false);
+        ownerToFight[msg.sender] = fightStatus(msg.sender,_cryptomonId, _opponent, _opponentCryptomonIdy);
 
     }
 
+
+    /**
+    @notice cryptomons are fighting, each time you decide to fight, each cryptomon hits one time
+    @dev
+            Check if not default fight, which means address(0) for the player (sender)
+            Then instantiates both cryptomon fighters
+            randomFunction() to allow the opponent to dodge
+                Then damage are taken, totHealthPoint are substracts based on spell damage from SpellAndDamage strcture and damage bonus from Cryptomon structure
+                Check if cryptomon is K.O.
+                    Add win to player cryptomon
+                    Add lose to opponent cryptomon
+                    Check level difference and adapt the experience earned
+                    Check level up based on the experience + experience earned, and the experience needed for level up
+                        Add level and randomly value to stats (healthBonus and damageBonus)
+                        Check if new level corresponds to the evolution level
+                            Then evolve()
+                    cryptomon player is losing some "hungry"
+                    Check if he is hungry (hungry = 0)
+                    ownerToFight is set to default
+                    Emit fight has ended
+            Otherwise, nothing happens and opponent hits
+            He deals damages to player cryptomon, earned less experience because passive cryptomon and can level up and evolve aswell
+    */
     function fight() public {
         require(ownerToFight[msg.sender].sender != defaultFighting.sender);
 
-        // Instance des deux cryptomons en combat : storage ou memory ?
-        Cryptomon memory cryptomonFighter = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].cryptomonIdInventary];
-        Cryptomon memory cryptomonOpponent = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].opponentCryptomonInventary];
+        // Instance des deux cryptomons en combat : storage ou memory ? PAS BON ICI
+        Cryptomon memory cryptomonFighter = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon];
+        Cryptomon memory cryptomonOpponent = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent];
 
-        // Le owner attaque en premier
         uint randDodgeOpponent = randomFunction(100);
         if(cryptomonOpponent.dodgeRate >= randDodgeOpponent){
             cryptomonOpponent.totHealthPoint -= spellAndDamage[cryptomonFighter.idSpell].damage;
@@ -80,35 +166,47 @@ contract CryptomonCombat is CryptomonHelper{
                 cryptomonOpponent.lossCount = cryptomonOpponent.lossCount.add(1);
                 if(cryptomonFighter.level < cryptomonOpponent.level){
                     cryptomonFighter.actualExp = cryptomonFighter.actualExp.add(ExpPerFight*(cryptomonOpponent.level-cryptomonFighter.level));
-                    if(cryptomonFighter.actualExp > levelToExpNeededToLevelUp[cryptomonFighter.level]){
-                        cryptomonFighter.actualExp = levelToExpNeededToLevelUp[cryptomonFighter.level+1].sub(cryptomonFighter.actualExp);
-                        cryptomonFighter.level = cryptomonFighter.level.add(1);
-                        cryptomonFighter.damageBonus += randomFunction(2)+1;
-                        cryptomonFighter.healthBonus += randomFunction(4)+1;
-                        cryptomonFighter.totHealthPoint = cryptomonFighter.healthBonus + cryptomonFighter.healthPoint;
-                        if(cryptomonFighter.level == cryptomonFighter.levelNeededForEvolution){
-                            evolve(cryptomonFighter);
-                        }
+                }else{
+                    cryptomonFighter.actualExp = cryptomonFighter.actualExp.add(ExpPerFight);
+                }
+                if(cryptomonFighter.actualExp > levelToExpNeededToLevelUp[cryptomonFighter.level]){
+                    cryptomonFighter.actualExp = levelToExpNeededToLevelUp[cryptomonFighter.level+1].sub(cryptomonFighter.actualExp);
+                    cryptomonFighter.level = cryptomonFighter.level.add(1);
+                    cryptomonFighter.damageBonus += randomFunction(2)+1;
+                    cryptomonFighter.healthBonus += randomFunction(4)+1;
+                    cryptomonFighter.totHealthPoint = cryptomonFighter.healthBonus + cryptomonFighter.healthPoint;
+                    if(cryptomonFighter.level == cryptomonFighter.levelNeededForEvolution){
+                        evolve(cryptomonFighter);
                     }
                 }
                 cryptomonFighter.hungry = cryptomonFighter.hungry.sub(hungryAfterFight);
+                if(cryptomonFighter.hungry <= 0){
+                    cryptomonToHungry[cryptomonFighter.idCryptomon] = true;
+                }
                 ownerToFight[msg.sender] = defaultFighting;
                 emit Endfight(true);
             }
         }
-        // L'opposant tape en second
+
         uint randDodge = randomFunction(100);
         if(cryptomonFighter.dodgeRate >= randDodge){
             cryptomonFighter.totHealthPoint -= spellAndDamage[cryptomonOpponent.idSpell].damage;
             cryptomonFighter.totHealthPoint -= cryptomonOpponent.damageBonus;
             if(cryptomonFighter.totHealthPoint <= 0){
-                cryptomonFighter.actualExp = cryptomonFighter.actualExp.add(passivExpPerFight);
+                cryptomonFighter.actualExp = cryptomonFighter.actualExp.add(passiveExpPerFight);
                 if(cryptomonOpponent.actualExp > levelToExpNeededToLevelUp[cryptomonOpponent.level]){
                     cryptomonOpponent.actualExp = levelToExpNeededToLevelUp[cryptomonOpponent.level+1].sub(cryptomonOpponent.actualExp);
                     cryptomonOpponent.level = cryptomonOpponent.level.add(1);
                     cryptomonOpponent.damageBonus += randomFunction(2)+1;
                     cryptomonOpponent.healthBonus += randomFunction(4)+1;
                     cryptomonOpponent.totHealthPoint = cryptomonOpponent.healthBonus + cryptomonOpponent.healthPoint;
+                    if(cryptomonOpponent.level == cryptomonOpponent.levelNeededForEvolution){
+                        evolve(cryptomonOpponent);
+                    }
+                }
+                cryptomonFighter.hungry = cryptomonFighter.hungry.sub(hungryAfterFight);
+                if(cryptomonFighter.hungry <= 0){
+                    cryptomonToHungry[cryptomonFighter.idCryptomon] = true;
                 }
                 ownerToFight[msg.sender] = defaultFighting;
                 emit Endfight(true);

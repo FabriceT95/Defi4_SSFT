@@ -1,11 +1,20 @@
-pragma solidity 0.5.0;
+pragma solidity ^0.5.0;
 pragma experimental ABIEncoderV2;
 
 import "./Ownable.sol";
 
+/**
+ @title CryptomonFactory contract
+ @author Selim Sahnoun / Fabrice Tapia
+ @dev Contract which is a part of the Alyra's challenge 4
+ */
+
 contract CryptomonFactory is Ownable {
+
+    // Kind enum is useful for the function fight() in cryptomonCombat.sol (weakness and strength)
     enum Kind {WATER, FIRE, GRASS, ELECTRIK, NEUTRAL}
 
+    // Basic definition of a cryptomon
     struct Cryptomon{
         uint idCryptomon;
         uint idInventory;
@@ -16,7 +25,7 @@ contract CryptomonFactory is Ownable {
         uint lastExchange;
         uint actualExp;
         uint probabilityToCatch;
-        uint hungry;
+        int hungry;
         uint captureDate;
         int healthPoint;
         int totHealthPoint;
@@ -27,29 +36,51 @@ contract CryptomonFactory is Ownable {
         int healthBonus;
         uint8 idCryptomonEvolution;
         uint8 levelNeededForEvolution;
-
     }
 
+    // Basic definition of a spell linked to the cryptomon idSpell and damage
     struct SpellAndDamage{
         uint id;
         string spell;
         int damage;
     }
 
-    uint lastDateGetFreeObjects;
-
-
-    Cryptomon[] public cryptomons;
-    SpellAndDamage[] public spellAndDamage;
-
-    event Evolution();
-
+    // Mapping listing all cryptomons for each player
     mapping(address => Cryptomon[]) public ownerToCryptomon;
+
+    // Mapping returning the owner of a particular cryptomon
     mapping(uint => address) cryptomonToOwner;
+
+    // Mapping returning number of cryptomons for each player
     mapping(address => uint) public ownerCryptomonCount;
 
+    // Mapping defining the experience needed for each level (mapping is filled in the constructor)
     mapping(uint => uint) levelToExpNeededToLevelUp;
 
+    // Mapping returning the last time the player clamed the daily free objects pack
+    mapping(address => uint) ownerToLastDateGetFreeObjects;
+
+    mapping (uint => bool) cryptomonToHungry;
+
+    // List of existing cryptomon (array is filled in the constructor)
+    Cryptomon[] public cryptomons;
+
+    // List of existings spells (array is filled in the constructor)
+    SpellAndDamage[] public spellAndDamage;
+
+    // Event used at the end of the evolve() function
+    event Evolution(Cryptomon indexed _cryptomon);
+
+
+    /**
+    @notice defining basic elements needed for the game
+    @dev
+            defining mapping and arrays used for the good use of the game.
+            cryptomons array is filled of Cryptomon structures.
+            spellAndDamage array is filled of SpellAndDamage structures.
+            levelToExpNeededToLevelUp is filled of key and values.
+            Basically you need this contract to deployed the others.
+     */
     constructor() public {
         cryptomons.push(Cryptomon(1,0,"cryptoChu", 1, 0,Kind.ELECTRIK,0,0,20,80,0,100,100,5,0,0,1,0,2,5));
         cryptomons.push(Cryptomon(2,0,"RaicryptoChu", 1, 4,Kind.ELECTRIK,0,0,20,80,0,150,150,5,0,0,1,0,0,0));
@@ -93,16 +124,28 @@ contract CryptomonFactory is Ownable {
 
     }
 
-    function evolve(Cryptomon cryptomon) internal {
-        Cryptomon memory evolCryptomon = cryptomons[cryptomon.idCryptomonEvolution];
-        cryptomon.idCryptomon = evolCryptomon.idCryptomon;
-        cryptomon.name = evolCryptomon.name;
-        cryptomon.idSpell = evolCryptomon.idSpell;
-        cryptomon.healthPoint = evolCryptomon.healthPoint;
-        cryptomon.totHealthPoint = evolCryptomon.healthPoint + cryptomon.healthBonus;
-        cryptomon.idCryptomonEvolution = evolCryptomon.idCryptomonEvolution;
-        cryptomon.levelNeededForEvolution = evolCryptomon.levelNeededForEvolution;
-        emit Evolution();
+
+    /**
+    @notice evolving your crytomon when his experience needed is reached
+    @dev
+            It modifies the content of the cryptomon object by his evolution (defined in the cryptomons array of structure Cryptomon).
+            You can create new evolutions by adding more Cryptomon structures in the cryptomons array and adapting his "idCryptomonEvolution".
+            Then you need to re-deploy all contracts after this one.
+            Evolution emit will display on the UI
+
+    @param _cryptomon cryptomon which reached his experience needed for evolution
+
+     */
+    function evolve(Cryptomon _cryptomon) internal {
+        Cryptomon memory evolCryptomon = cryptomons[_cryptomon.idCryptomonEvolution];
+        _cryptomon.idCryptomon = evolCryptomon.idCryptomon;
+        _cryptomon.name = evolCryptomon.name;
+        _cryptomon.idSpell = evolCryptomon.idSpell;
+        _cryptomon.healthPoint = evolCryptomon.healthPoint;
+        _cryptomon.totHealthPoint = evolCryptomon.healthPoint + _cryptomon.healthBonus;
+        _cryptomon.idCryptomonEvolution = evolCryptomon.idCryptomonEvolution;
+        _cryptomon.levelNeededForEvolution = evolCryptomon.levelNeededForEvolution;
+        emit Evolution(_cryptomon);
     }
 
 }
