@@ -29,6 +29,7 @@ contract CryptomonHelper is CryptomonFactory{
         int superPotion;
         int hyperPotion;
         int fullRestore;
+        int maxRestore;
     }
 
     // default fee needed to buy a cryptoball (can be set with setCryptoballFee() )
@@ -93,7 +94,7 @@ contract CryptomonHelper is CryptomonFactory{
     /**
     @notice Players can purchase potions which depends on the type asked
     @dev
-            This function needs a value (1,2,3,4)
+            This function needs a value (1,2,3,4,10)
             It can be called by the UI
             Depending on the param value, it increments the corresponding variable in the cryptoFood structure of the sender
     @param _typeof Type of the potion asked
@@ -113,6 +114,9 @@ contract CryptomonHelper is CryptomonFactory{
         else if(_typeof == 4){
             ownerToCryptofood[msg.sender].fullRestore++;
         }
+        else if(_typeof == 10){
+            ownerToCryptofood[msg.sender].maxRestore++;
+        }
     }
 
 
@@ -124,15 +128,22 @@ contract CryptomonHelper is CryptomonFactory{
         - The hunger drops by 1 pt every 4 hours = 14 400 sec
     @dev
             It can be called only by the cryptomon owner
-            This function needs a value (1,2,3,4) to determin which potion to use
+            This function needs a value (1,2,3,4,10) to determin which potion to use
+            We need a function to check the hunger that can be called by the user
 
     @param _typeof Type of the potion to use on the cryptomon
      */
+    function hungerUpdate (uint _cryptomonId) public view returns(int) {
+        require(cryptomonToOwner[_cryptomonId] == msg.sender);
+        int currentHunger = sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger,div(sub(now,ownerToCryptomon[msg.sender][_cryptomonId].lastMealTime),14400));
+        return(currentHunger);
+    }
+
     function feed(uint _cryptomonId, uint _typeof) public {
         require(cryptomonToOwner[_cryptomonId] == msg.sender);
-        require(ownerToCryptomon[msg.sender][_cryptomonId].hunger >= 0);
+        ownerToCryptomon[msg.sender][_cryptomonId].hunger = uint hungerUpdate(_cryptomonId) //plus besoin de require hunger >0 puisque ça ne tue pas le cryptomon
 
-        //We check the potion selected to the hunger, simplePotion : +20, super: +40, hyper: +60.
+        //We check the potion selected to the hunger, simplePotion : +20, super: +40, hyper: +60, max restore = full restore hunger + 5 bonus health points.
         if(_typeof == 1){
             require(ownerToCryptofood[msg.sender].simplePotion>0);
             ownerToCryptofood[msg.sender].simplePotion.sub(1);
@@ -140,28 +151,30 @@ contract CryptomonHelper is CryptomonFactory{
             // potion special : ownerToCryptomon[msg.sender][_cryptomonId].healthBonus add, mettre à jour totHealthPoint (=healthBonus+healthPoint)
         }
         else if(_typeof == 2){
-            potionChosen = ownerToCryptofood[msg.sender].superPotion;
-            require(potionChosen>0);
+            require(ownerToCryptofood[msg.sender].superPotion>0);
             ownerToCryptofood[msg.sender].superPotion.sub(1);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger.add(40);
         }
         else if(_typeof == 3){
-            potionChosen = ownerToCryptofood[msg.sender].hyperPotion;
-            require(potionChosen>0);
+            require(ownerToCryptofood[msg.sender].hyperPotion>0);
             ownerToCryptofood[msg.sender].hyperPotion.sub(1);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger.add(60);
         }
         else if(_typeof == 4){
-            potionChosen = ownerToCryptofood[msg.sender].fullRestore;
-            require(potionChosen>0);
+            require(ownerToCryptofood[msg.sender].fullRestore>0);
             ownerToCryptofood[msg.sender].fullRestore.sub(1);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
         }
-
-        //Hunger can't exceed 100. The drawback is minus healthpoints
+        else if(_typeof == 10){
+            require(ownerToCryptofood[msg.sender].maxRestore>0);
+            ownerToCryptofood[msg.sender].maxRestore.sub(1);
+            ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
+            ownerToCryptomon[msg.sender][_cryptomonId].healthBonus += 5;
+            ownerToCryptomon[msg.sender][_cryptomonId].totHealthPoint = ownerToCryptomon[msg.sender][_cryptomonId].healthBonus + ownerToCryptomon[msg.sender][_cryptomonId].healthPoint;
+        }
+        //Hunger can't exceed 100. The drawback is minus tothealthpoints
         if (ownerToCryptomon[msg.sender][_cryptomonId].hunger >100){
-            uint aboveLimitHunger = ownerToCryptomon[msg.sender][_cryptomonId].hunger - 100;
-            ownerToCryptomon[msg.sender][_cryptomonId].healthPoint.sub(aboveLimitHunger);
+            ownerToCryptomon[msg.sender][_cryptomonId].totHealthPoint.sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger - 100);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
         }
 
@@ -194,15 +207,16 @@ contract CryptomonHelper is CryptomonFactory{
      */
     function getFreeObject() public {
         require(ownerToLastDateGetFreeObjects[msg.sender] == 0 || now - ownerToLastDateGetFreeObjects[msg.sender] >= 1 days );
-        ownerToLastDateGetFreeObjects[msg.sender] = now;
-        ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(3)+1);
+        ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(3)+1); 
         if(randomFunction(100) > 50){
             ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(2)+1);
         }
         if(randomFunction(100) > 75){
             ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(1)+1);
         }
-
-        // AJOUTER DE LA NOURRITURE A OBTENIR DE FACON ALEATOIRE
+        if(randomFunction(100) > 90){
+            ownerToCryptofood[msg.sender].simplePotion.add(randomFunction(1)+1);
+        }
+        ownerToLastDateGetFreeObjects[msg.sender] = now;
     }
 }
