@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.4.0;
 pragma experimental ABIEncoderV2;
 
 import "./CryptomonHelper.sol";
@@ -26,7 +26,7 @@ contract CryptomonCombat is CryptomonHelper{
     uint passiveExpPerFight = 5;
 
     // Hungry value, after a fight, active cryptomon will lose this amount in his Cryptomon structure
-    uint hungryAfterFight = 2;
+    uint hungryAfterFight = 4;
 
     // Mapping defining the player trying to capture a Cryptomon
     mapping(address => Cryptomon) ownerToCapture;
@@ -53,8 +53,8 @@ contract CryptomonCombat is CryptomonHelper{
             Using randomFunction(uint8 modulo) from CryptomonHelper.sol
     @return Cryptomon structure from the list cryptomons
     */
-    function spawnCryptomon() public returns (Cryptomon){
-        uint rand = randomFunction(getCountCryptomons()); //randomFunction(3);
+    function spawnCryptomon() internal returns (Cryptomon){
+        uint rand = randomFunction(getCountCryptomons());
         return cryptomons[rand];
     }
 
@@ -92,7 +92,6 @@ contract CryptomonCombat is CryptomonHelper{
     @param cryptoballType number between 1 and 3 include specifying which cryptoball is used
     */
     function capture(uint cryptoballType) public {
-        // require(keccak256(bytes(ownerToCapture[msg.sender])) != keccak256(defaultCryptomon));
         require((ownerToCryptoballs[msg.sender].simpleCryptoballs > 0 || ownerToCryptoballs[msg.sender].superCryptoballs > 0 || ownerToCryptoballs[msg.sender].hyperCryptoballs > 0));
         uint probabilityToCatch = ownerToCapture[msg.sender].probabilityToCatch;
         uint catchCrypto = cryptoballType * probabilityToCatch;
@@ -102,9 +101,9 @@ contract CryptomonCombat is CryptomonHelper{
             ownerToCapture[msg.sender].idInventory = ownerCryptomonCount[msg.sender];
             ownerToCapture[msg.sender].idCryptomon = uint(msg.sender)+uint(keccak256(abi.encodePacked(ownerToCapture[msg.sender].idInventory)));
             ownerCryptomonCount[msg.sender] = ownerCryptomonCount[msg.sender].add(1);
-            ownerToCryptomon[msg.sender].push(ownerToCapture[msg.sender]);
+            //ownerToCryptomon[msg.sender].push(ownerToCapture[msg.sender]);
+            ownerToCryptomon[msg.sender][idCryptomon] = ownerToCapture[msg.sender];
             cryptomonToOwner[ownerToCapture[msg.sender].idCryptomon] = msg.sender;
-            cryptomonToHungry[ownerToCapture[msg.sender].idCryptomon] = false;
             emit Capture(true);
             stopCapture();
         }else{
@@ -122,7 +121,7 @@ contract CryptomonCombat is CryptomonHelper{
     @param _cryptomonIdInventary
     */
     function startFight(uint _cryptomonId, address _opponent, uint _opponentCryptomonId) public {
-        require(cryptomonToHungry[_cryptomonId] == false);
+        require(ownerToCryptomon[msg.sender][_cryptomonId].hungry > 0);
         ownerToFight[msg.sender] = fightStatus(msg.sender,_cryptomonId, _opponent, _opponentCryptomonIdy);
 
     }
@@ -180,11 +179,12 @@ contract CryptomonCombat is CryptomonHelper{
                     }
                 }
                 cryptomonFighter.hungry = cryptomonFighter.hungry.sub(hungryAfterFight);
-                if(cryptomonFighter.hungry <= 0){
-                    cryptomonToHungry[cryptomonFighter.idCryptomon] = true;
-                }
+                ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon] = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthBonus + ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthPoint;
+                ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent] = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthBonus + ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthPoint;
+
                 ownerToFight[msg.sender] = defaultFighting;
                 emit Endfight(true);
+                break;
             }
         }
 
@@ -205,12 +205,15 @@ contract CryptomonCombat is CryptomonHelper{
                     }
                 }
                 cryptomonFighter.hungry = cryptomonFighter.hungry.sub(hungryAfterFight);
-                if(cryptomonFighter.hungry <= 0){
-                    cryptomonToHungry[cryptomonFighter.idCryptomon] = true;
-                }
+                ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon] = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthBonus + ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthPoint;
+                ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent] = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthBonus + ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthPoint;
                 ownerToFight[msg.sender] = defaultFighting;
+
                 emit Endfight(true);
+                break;
             }
+            ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon] = cryptomonFighter;
+            ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent] = cryptomonOpponent;
             emit Endfight(false);
         }
     }

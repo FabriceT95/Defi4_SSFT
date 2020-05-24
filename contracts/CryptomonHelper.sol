@@ -31,15 +31,15 @@ contract CryptomonHelper is CryptomonFactory{
     }
 
     // default fee needed to buy a cryptoball (can be set with setCryptoballFee() )
-    uint cryptoballFee = 0.0001 ether;
+    uint private cryptoballFee = 0.0001 ether;
     // default fee needed to buy a potion (can be set with setPotionFee() )
-    uint potionFee = 0.0001 ether;
+    uint private potionFee = 0.0001 ether;
 
     // Mapping returning the cryptoBalls structure for each player
-    mapping(address => cryptoBalls) ownerToCryptoballs;
+    mapping(address => cryptoBalls) public ownerToCryptoballs;
 
     // Mapping returning the cryptoFood structure for each player
-    mapping(address => cryptoFood) ownerToCryptofood;
+    mapping(address => cryptoFood) public ownerToCryptofood;
 
 
     /**
@@ -83,6 +83,8 @@ contract CryptomonHelper is CryptomonFactory{
         }
 
     }
+
+
     /**
     @notice Players can purchase potions which depends on the type asked
     @dev
@@ -107,6 +109,8 @@ contract CryptomonHelper is CryptomonFactory{
             ownerToCryptofood[msg.sender].fullRestore++;
         }
     }
+
+
     /**
     @notice 
     Players can feed potions which will affect the hunger of the cryptomon : 

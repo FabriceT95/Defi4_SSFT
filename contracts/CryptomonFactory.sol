@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.4.0;
 pragma experimental ABIEncoderV2;
 
 import "./Ownable.sol";
@@ -47,21 +47,21 @@ contract CryptomonFactory is Ownable {
     }
 
     // Mapping listing all cryptomons for each player
-    mapping(address => Cryptomon[]) public ownerToCryptomon;
+    //mapping(address => Cryptomon[]) internal ownerToCryptomon;
+    mapping(address => mapping(uint => Cryptomon)) public ownerToCryptomon;
 
     // Mapping returning the owner of a particular cryptomon
-    mapping(uint => address) cryptomonToOwner;
+    mapping(uint => address) public cryptomonToOwner;
 
     // Mapping returning number of cryptomons for each player
     mapping(address => uint) public ownerCryptomonCount;
 
     // Mapping defining the experience needed for each level (mapping is filled in the constructor)
-    mapping(uint => uint) levelToExpNeededToLevelUp;
+    mapping(uint => uint) public levelToExpNeededToLevelUp;
 
     // Mapping returning the last time the player clamed the daily free objects pack
-    mapping(address => uint) ownerToLastDateGetFreeObjects;
+    mapping(address => uint) public ownerToLastDateGetFreeObjects;
 
-    mapping (uint => bool) cryptomonToHungry;
 
     // List of existing cryptomon (array is filled in the constructor)
     Cryptomon[] public cryptomons;
@@ -83,6 +83,7 @@ contract CryptomonFactory is Ownable {
             Basically you need this contract to deployed the others.
      */
     constructor() public {
+
         cryptomons.push(Cryptomon(1,0,"cryptoChu", 1, 0,Kind.ELECTRIK,0,0,20,80,0,100,100,5,0,0,1,0,2,5,now));
         cryptomons.push(Cryptomon(2,0,"RaicryptoChu", 1, 4,Kind.ELECTRIK,0,0,20,80,0,150,150,5,0,0,1,0,0,0,now));
 
@@ -137,7 +138,7 @@ contract CryptomonFactory is Ownable {
     @param _cryptomon cryptomon which reached his experience needed for evolution
 
      */
-    function evolve(Cryptomon _cryptomon) internal {
+    function evolve(Cryptomon _cryptomon) external {
         Cryptomon memory evolCryptomon = cryptomons[_cryptomon.idCryptomonEvolution];
         _cryptomon.idCryptomon = evolCryptomon.idCryptomon;
         _cryptomon.name = evolCryptomon.name;
