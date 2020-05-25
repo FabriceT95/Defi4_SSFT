@@ -25,7 +25,7 @@ contract CryptomonFactory is Ownable {
         uint lastExchange;
         uint actualExp;
         uint probabilityToCatch;
-        int hungry;
+        int hunger;
         uint captureDate;
         int healthPoint;
         int totHealthPoint;

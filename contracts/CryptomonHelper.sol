@@ -66,6 +66,23 @@ contract CryptomonHelper is CryptomonFactory{
         potionFee = _fee;
     }
 
+    /**
+    @notice Basic random function
+    @dev
+            This function needs a modulo to return a random number between 0 and modulo.
+            It is used multiple time in the game
+    @return Random number between 0 and modulo
+    */
+    function randomFunction(uint8 modulo) internal returns (uint8) {
+        return uint8(blockhash(block.number-1)) % modulo;
+    }
+
+
+    // Returns number of existing cryptomons
+    function getCountCryptomons() view internal returns(uint) {
+        return cryptomons.length;
+    }
+
 
     /**
     @notice Players can purchase cryptoball which depends on the type asked
@@ -75,7 +92,6 @@ contract CryptomonHelper is CryptomonFactory{
             Depending on the param value, it increments the corresponding variable in the cryptoBalls structure of the sender
     @param _typeof Type of the cryptoball asked
      */
-
     function getCryptoball(uint _typeof) public payable {
         require(msg.value == cryptoballFee * _typeof);
         if(_typeof == 1){
@@ -99,9 +115,10 @@ contract CryptomonHelper is CryptomonFactory{
             Depending on the param value, it increments the corresponding variable in the cryptoFood structure of the sender
     @param _typeof Type of the potion asked
      */
-
     function getFood(uint _typeof) public payable{
+
         require(msg.value == potionFee * _typeof);
+
         if(_typeof == 1){
             ownerToCryptofood[msg.sender].simplePotion++;
         }
@@ -117,6 +134,7 @@ contract CryptomonHelper is CryptomonFactory{
         else if(_typeof == 10){
             ownerToCryptofood[msg.sender].maxRestore++;
         }
+
     }
 
 
@@ -134,21 +152,24 @@ contract CryptomonHelper is CryptomonFactory{
     @param _typeof Type of the potion to use on the cryptomon
      */
     function hungerUpdate (uint _cryptomonId) public view returns(int) {
+
         require(cryptomonToOwner[_cryptomonId] == msg.sender);
-        int currentHunger = sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger,div(sub(now,ownerToCryptomon[msg.sender][_cryptomonId].lastMealTime),14400));
-        return(currentHunger);
+
+        return sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger,div(sub(now,ownerToCryptomon[msg.sender][_cryptomonId].lastMealTime),14400));
+
     }
 
+
     function feed(uint _cryptomonId, uint _typeof) public {
+
         require(cryptomonToOwner[_cryptomonId] == msg.sender);
-        ownerToCryptomon[msg.sender][_cryptomonId].hunger = uint hungerUpdate(_cryptomonId) //plus besoin de require hunger >0 puisque ça ne tue pas le cryptomon
+        ownerToCryptomon[msg.sender][_cryptomonId].hunger = hungerUpdate(_cryptomonId); //plus besoin de require hunger >0 puisque ça ne tue pas le cryptomon
 
         //We check the potion selected to the hunger, simplePotion : +20, super: +40, hyper: +60, max restore = full restore hunger + 5 bonus health points.
         if(_typeof == 1){
             require(ownerToCryptofood[msg.sender].simplePotion>0);
             ownerToCryptofood[msg.sender].simplePotion.sub(1);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger.add(20);
-            // potion special : ownerToCryptomon[msg.sender][_cryptomonId].healthBonus add, mettre à jour totHealthPoint (=healthBonus+healthPoint)
         }
         else if(_typeof == 2){
             require(ownerToCryptofood[msg.sender].superPotion>0);
@@ -177,26 +198,9 @@ contract CryptomonHelper is CryptomonFactory{
             ownerToCryptomon[msg.sender][_cryptomonId].totHealthPoint.sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger - 100);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
         }
-
         cryptomons[_cryptomonId].lastMealTime = now;
+
     }
-
-
-    /**
-    @notice Basic random function
-    @dev
-            This function needs a modulo to return a random number between 0 and modulo.
-            It is used multiple time in the game
-    @return Random number between 0 and modulo
-    */
-    function randomFunction(uint8 modulo) internal returns (uint8) {
-        return uint8(blockhash(block.number-1)) % modulo;
-    }
-
-    function getCountCryptomons() view internal returns(uint) {
-        return cryptomons.length;
-    }
-
 
     /**
     @notice Each day, a player can ask for free objects. Basic F2P game stuff
@@ -206,17 +210,28 @@ contract CryptomonHelper is CryptomonFactory{
 
      */
     function getFreeObject() public {
+
         require(ownerToLastDateGetFreeObjects[msg.sender] == 0 || now - ownerToLastDateGetFreeObjects[msg.sender] >= 1 days );
-        ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(3)+1); 
+
+        ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(3)+1);
+        ownerToCryptofood[msg.sender].simplePotion.add(randomFunction(3)+1);
+
         if(randomFunction(100) > 50){
-            ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(2)+1);
+            ownerToCryptoballs[msg.sender].superCryptoballs.add(randomFunction(2)+1);
         }
         if(randomFunction(100) > 75){
-            ownerToCryptoballs[msg.sender].simpleCryptoballs.add(randomFunction(1)+1);
+            ownerToCryptoballs[msg.sender].hyperCryptoballs.add(randomFunction(1)+1);
+        }
+        if(randomFunction(100) > 50){
+            ownerToCryptofood[msg.sender].superPotion.add(randomFunction(1)+1);
+        }
+        if(randomFunction(100) > 75){
+            ownerToCryptofood[msg.sender].hyperPotion.add(randomFunction(1)+1);
         }
         if(randomFunction(100) > 90){
-            ownerToCryptofood[msg.sender].simplePotion.add(randomFunction(1)+1);
+            ownerToCryptofood[msg.sender].fullRestore.add(randomFunction(1)+1);
         }
         ownerToLastDateGetFreeObjects[msg.sender] = now;
+
     }
 }

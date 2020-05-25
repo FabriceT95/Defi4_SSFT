@@ -20,26 +20,22 @@ contract CryptomonCombat is CryptomonHelper{
     }
 
     // Active cryptomon fighter will win this amount of experience after a win
-    uint ExpPerFight = 20;
+    uint private ExpPerFight = 20;
 
     // Passiv cryptomon fighter will win this amount of experience after a win
-    uint passiveExpPerFight = 5;
+    uint private passiveExpPerFight = 5;
 
-    // Hungry value, after a fight, active cryptomon will lose this amount in his Cryptomon structure
-    uint hungryAfterFight = 4;
+    // Hungry value, after a fight, active cryptomon will lose this amount in its Cryptomon structure
+    uint private hungryAfterFight = 4;
 
     // Mapping defining the player trying to capture a Cryptomon
-    mapping(address => Cryptomon) ownerToCapture;
+    mapping(address => Cryptomon) private ownerToCapture;
 
     // Mapping defining the player and the fightStatus structure (it is a way to instanciate a fight)
-    mapping(address => fightStatus) ownerToFight;
-
-    /*
-    fightStatus fighting;
-    fightStatus[] private fightings;*/
+    mapping(address => fightStatus) private ownerToFight;
 
     // Default fight used when a fight is ended
-    fightStatus defaultFighting = fightStatus(address(0),0,address(0),0);
+    fightStatus private defaultFighting = fightStatus(address(0),0,address(0),0);
 
     // Event used at the end of the capture() function. True = success and fight is done, False = miss capture but capture() can continue
     event Capture(bool indexed success);
@@ -92,7 +88,9 @@ contract CryptomonCombat is CryptomonHelper{
     @param cryptoballType number between 1 and 3 include specifying which cryptoball is used
     */
     function capture(uint cryptoballType) public {
-        require((ownerToCryptoballs[msg.sender].simpleCryptoballs > 0 || ownerToCryptoballs[msg.sender].superCryptoballs > 0 || ownerToCryptoballs[msg.sender].hyperCryptoballs > 0));
+
+        require((ownerToCryptoballs[msg.sender].simpleCryptoballs > 0 || ownerToCryptoballs[msg.sender].superCryptoballs > 0 || ownerToCryptoballs[msg.sender].hyperCryptoballs > 0) && ownerToCapture[msg.sender] != 0);
+
         uint probabilityToCatch = ownerToCapture[msg.sender].probabilityToCatch;
         uint catchCrypto = cryptoballType * probabilityToCatch;
         uint rand = randomFunction(100);
@@ -109,21 +107,23 @@ contract CryptomonCombat is CryptomonHelper{
         }else{
             emit Capture(false);
         }
+
     }
 
 
     /**
     @notice Player starts a fight against a passive player
     @dev
-            Check if the selected cryptomon is not hungry (in structure Cryptomon, hungry > 0)
+            Check if the selected cryptomon is not hunger (in structure Cryptomon, hunger > 0)
             Instianciates a fightStatus in ownerToFight
 
     @param _cryptomonIdInventary
     */
     function startFight(uint _cryptomonId, address _opponent, uint _opponentCryptomonId) public {
-        require(ownerToCryptomon[msg.sender][_cryptomonId].hungry > 0);
-        ownerToFight[msg.sender] = fightStatus(msg.sender,_cryptomonId, _opponent, _opponentCryptomonIdy);
 
+        require(ownerToCryptomon[msg.sender][_cryptomonId].hunger > 0 && ownerToFight[msg.sender].sender == defaultFighting.sender);
+
+        ownerToFight[msg.sender] = fightStatus(msg.sender,_cryptomonId, _opponent, _opponentCryptomonIdy);
     }
 
 
@@ -142,8 +142,8 @@ contract CryptomonCombat is CryptomonHelper{
                         Add level and randomly value to stats (healthBonus and damageBonus)
                         Check if new level corresponds to the evolution level
                             Then evolve()
-                    cryptomon player is losing some "hungry"
-                    Check if he is hungry (hungry = 0)
+                    cryptomon player is losing some "hunger"
+                    Check if he is hunger (hunger = 0)
                     ownerToFight is set to default
                     Emit fight has ended
             Otherwise, nothing happens and opponent hits
@@ -152,7 +152,6 @@ contract CryptomonCombat is CryptomonHelper{
     function fight() public {
         require(ownerToFight[msg.sender].sender != defaultFighting.sender);
 
-        // Instance des deux cryptomons en combat : storage ou memory ? PAS BON ICI
         Cryptomon memory cryptomonFighter = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon];
         Cryptomon memory cryptomonOpponent = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent];
 
@@ -178,7 +177,7 @@ contract CryptomonCombat is CryptomonHelper{
                         evolve(cryptomonFighter);
                     }
                 }
-                cryptomonFighter.hungry = cryptomonFighter.hungry.sub(hungryAfterFight);
+                cryptomonFighter.hunger = cryptomonFighter.hunger.sub(hungryAfterFight);
                 ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon] = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthBonus + ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthPoint;
                 ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent] = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthBonus + ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthPoint;
 
@@ -204,7 +203,7 @@ contract CryptomonCombat is CryptomonHelper{
                         evolve(cryptomonOpponent);
                     }
                 }
-                cryptomonFighter.hungry = cryptomonFighter.hungry.sub(hungryAfterFight);
+                cryptomonFighter.hunger = cryptomonFighter.hunger.sub(hunger);
                 ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon] = ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthBonus + ownerToCryptomon[msg.sender][ownerToFight[msg.sender].idCryptomon].healthPoint;
                 ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent] = ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthBonus + ownerToCryptomon[ownerToFight[msg.sender].opponent][ownerToFight[msg.sender].idCryptomonOpponent].healthPoint;
                 ownerToFight[msg.sender] = defaultFighting;
