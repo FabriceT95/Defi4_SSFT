@@ -1,8 +1,9 @@
-pragma solidity 0.4.0;
+pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2;
 
 import "./CryptomonFactory.sol";
 import "./SafeMath.sol";
+import "./SignedSafeMath.sol";
 
 /**
  @title CryptomonHelper contract
@@ -16,21 +17,25 @@ contract CryptomonHelper is CryptomonFactory{
     using SafeMath32 for uint32;
     using SafeMath16 for uint16;
 
+    using SignedSafeMath for int;
+
     // Basic definition of "cryptoBalls" objects
     struct cryptoBalls{
-        int simpleCryptoballs;
-        int superCryptoballs;
-        int hyperCryptoballs;
+        uint simpleCryptoballs;
+        uint superCryptoballs;
+        uint hyperCryptoballs;
     }
 
     // Basic definition of "Food" objects
     struct cryptoFood{
-        int simplePotion;
-        int superPotion;
-        int hyperPotion;
-        int fullRestore;
-        int maxRestore;
+        uint simplePotion;
+        uint superPotion;
+        uint hyperPotion;
+        uint fullRestore;
+        uint maxRestore;
     }
+
+    uint randNonce;
 
     // default fee needed to buy a cryptoball (can be set with setCryptoballFee() )
     uint cryptoballFee = 0.0001 ether;
@@ -73,8 +78,9 @@ contract CryptomonHelper is CryptomonFactory{
             It is used multiple time in the game
     @return Random number between 0 and modulo
     */
-    function randomFunction(uint8 modulo) internal returns (uint8) {
-        return uint8(blockhash(block.number-1)) % modulo;
+    function randomFunction(uint modulo) internal returns (uint) {
+        randNonce++;
+        return uint(keccak256(abi.encodePacked(now, msg.sender, randNonce))) % modulo;
     }
 
 
@@ -149,14 +155,11 @@ contract CryptomonHelper is CryptomonFactory{
             This function needs a value (1,2,3,4,10) to determin which potion to use
             We need a function to check the hunger that can be called by the user
 
-    @param _typeof Type of the potion to use on the cryptomon
+    @param _cryptomonId cryptomon's id targetted for the update
      */
-    function hungerUpdate (uint _cryptomonId) public view returns(int) {
-
+    function hungerUpdate (uint _cryptomonId) public view returns(uint) {
         require(cryptomonToOwner[_cryptomonId] == msg.sender);
-
-        return sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger,div(sub(now,ownerToCryptomon[msg.sender][_cryptomonId].lastMealTime),14400));
-
+        return ownerToCryptomon[msg.sender][_cryptomonId].hunger.sub((now.sub(ownerToCryptomon[msg.sender][_cryptomonId].lastMealTime)).div(14400));
     }
 
 
@@ -168,39 +171,43 @@ contract CryptomonHelper is CryptomonFactory{
         //We check the potion selected to the hunger, simplePotion : +20, super: +40, hyper: +60, max restore = full restore hunger + 5 bonus health points.
         if(_typeof == 1){
             require(ownerToCryptofood[msg.sender].simplePotion>0);
-            ownerToCryptofood[msg.sender].simplePotion.sub(1);
-            ownerToCryptomon[msg.sender][_cryptomonId].hunger.add(20);
+            ownerToCryptofood[msg.sender].simplePotion--;
+            ownerToCryptomon[msg.sender][_cryptomonId].hunger += 20;
         }
         else if(_typeof == 2){
             require(ownerToCryptofood[msg.sender].superPotion>0);
-            ownerToCryptofood[msg.sender].superPotion.sub(1);
-            ownerToCryptomon[msg.sender][_cryptomonId].hunger.add(40);
+            ownerToCryptofood[msg.sender].superPotion--;
+            ownerToCryptomon[msg.sender][_cryptomonId].hunger += 40;
         }
         else if(_typeof == 3){
             require(ownerToCryptofood[msg.sender].hyperPotion>0);
-            ownerToCryptofood[msg.sender].hyperPotion.sub(1);
-            ownerToCryptomon[msg.sender][_cryptomonId].hunger.add(60);
+            ownerToCryptofood[msg.sender].hyperPotion--;
+            ownerToCryptomon[msg.sender][_cryptomonId].hunger += 60;
         }
         else if(_typeof == 4){
             require(ownerToCryptofood[msg.sender].fullRestore>0);
-            ownerToCryptofood[msg.sender].fullRestore.sub(1);
-            ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
+            ownerToCryptofood[msg.sender].fullRestore--;
+            ownerToCryptomon[msg.sender][_cryptomonId].hunger += 100;
         }
         else if(_typeof == 10){
             require(ownerToCryptofood[msg.sender].maxRestore>0);
-            ownerToCryptofood[msg.sender].maxRestore.sub(1);
+            ownerToCryptofood[msg.sender].maxRestore--;
             ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
-            ownerToCryptomon[msg.sender][_cryptomonId].healthBonus += 5;
-            ownerToCryptomon[msg.sender][_cryptomonId].totHealthPoint = ownerToCryptomon[msg.sender][_cryptomonId].healthBonus + ownerToCryptomon[msg.sender][_cryptomonId].healthPoint;
+            cryptomonIdToHealth[_cryptomonId].healthBonus.add(5);
+            cryptomonIdToHealth[_cryptomonId].totHealthPoint = cryptomonIdToHealth[_cryptomonId].healthBonus + cryptomonIdToHealth[_cryptomonId].healthPoint;
         }
         //Hunger can't exceed 100. The drawback is minus tothealthpoints
         if (ownerToCryptomon[msg.sender][_cryptomonId].hunger >100){
-            ownerToCryptomon[msg.sender][_cryptomonId].totHealthPoint.sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger - 100);
+            cryptomonIdToHealth[_cryptomonId].totHealthPoint.sub(ownerToCryptomon[msg.sender][_cryptomonId].hunger - 100);
             ownerToCryptomon[msg.sender][_cryptomonId].hunger = 100;
         }
         cryptomons[_cryptomonId].lastMealTime = now;
 
     }
+
+
+
+
 
     /**
     @notice Each day, a player can ask for free objects. Basic F2P game stuff
