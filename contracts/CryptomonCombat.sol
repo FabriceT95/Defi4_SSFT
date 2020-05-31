@@ -25,6 +25,7 @@ contract CryptomonCombat is CryptomonHelper{
     // Passiv cryptomon fighter will win this amount of experience after a win
     uint private passiveExpPerFight = 5;
 
+    // Nonce for random cryptomon id
     uint private nonce;
 
     // Hungry value, after a fight, active cryptomon will lose this amount in its Cryptomon structure

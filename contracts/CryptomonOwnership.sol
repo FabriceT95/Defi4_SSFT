@@ -23,6 +23,12 @@ contract CryptomonOwnership is CryptomonFactory, ERC721 {
         _;
     }
 
+    // Returns cryptomon number by user
+    function balanceOf(address _owner) external view returns (uint256) {
+        return ownerCryptomonCount[_owner];
+    }
+
+
     // Returns cryptomon owner
     function ownerOf(uint256 _cryptomonId) public view returns (address) {
         return cryptomonToOwner[_cryptomonId];
